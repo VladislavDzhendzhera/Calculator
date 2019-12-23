@@ -1,8 +1,6 @@
 #ifndef CALCULATOR_H
 #define CALCULATOR_H
 
-//#include <QtDebug>
-
 #include <math.h>
 #include <stdexcept>
 
