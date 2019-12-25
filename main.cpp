@@ -3,11 +3,16 @@
 
 using namespace std;
 
-const unsigned COR_EXPR_COUNT = 15;
-const unsigned INCOR_EXPR_COUNT = 14;
+const unsigned COR_EXPR_COUNT = 19;
+const unsigned INCOR_EXPR_COUNT = 15;
 
-double answers[COR_EXPR_COUNT] = {4, -16, 0.0625, 1, -3.2, 12.3, 1.75, 0, 4, -1, -1, 3, 0, -1, 1};
-const char* correctExpression[COR_EXPR_COUNT] = {"2+2",
+double answers[COR_EXPR_COUNT] = {10.1, 10.1, 256, 6.5, 3, 4, -16, 0.0625, 1, -3.2, 12.3, 1.75, 0, 4, -1, -1, 0, -1, 1};
+const char* correctExpression[COR_EXPR_COUNT] = {"10.1",
+                                                 "(10.1)",
+                                                 "2 ^ 2. ^ 3.0",
+                                                 "13.0 / 2.",
+                                                 "((4.0 - 1.) / (2.0 - 1))",
+                                                 "2+2",
                                                  "4*-4",
                                                  "2^-4",
                                                  "-1^2",
@@ -18,10 +23,9 @@ const char* correctExpression[COR_EXPR_COUNT] = {"2+2",
                                                  "(2)- 4/-	(6-4)",
                                                  "-1",
                                                  "(-1.)",
-                                                 "((4.0 - 1.) / (2.0 - 1))",
                                                  "(-1+1)^-(8   -9)	",
-                                                 "0-(1)^2",
-                                                 "-(1)^2"
+                                                 "0 - (1)^2",
+                                                 "- (1)^2"
                                                  };
 
 const char* incorrectExpression[INCOR_EXPR_COUNT] = {"(",
@@ -37,7 +41,8 @@ const char* incorrectExpression[INCOR_EXPR_COUNT] = {"(",
                                                      "4+-4",
                                                      "1--1",
                                                      "+1",
-                                                     "((+1))"
+                                                     "((+1))",
+                                                     ".1"
                                                     };
 
 int main()

@@ -367,6 +367,9 @@ double Calculator::parseNumber(int leftPos, int rightPos) const
         trim(leftPos, rightPos);
     }
 
+    if(strExpression[leftPos] == DOT)
+        throw std::runtime_error("Number start with delimiter!");
+
     for(int pos = leftPos; pos <= rightPos; ++pos)
     {
         if(strExpression[pos] >= FIRST_NUMBER && strExpression[pos] <= LAST_NUMBER)
