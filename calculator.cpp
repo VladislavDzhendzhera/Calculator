@@ -9,15 +9,47 @@ double Calculator::calc(const char *str)
     return result;
 }
 
-double Calculator::parseExpression(int leftPos, int rightPos)
+bool Calculator::isZero(double var)
+{
+    return var < EPSILON && var > -EPSILON;
+}
+
+// Функция работает для представления вещественных чисел типа double согласно стандарту IEEE 754
+bool Calculator::isInteger(double var)
+{
+       // Для выполнения побитовых операций
+       unsigned long long bitsForm = *reinterpret_cast<unsigned long long*>(&var);
+
+       // Расчёт значения экспоненты по битовой маске
+       int exponent = ((bitsForm >> MANTISSA_LENGTH) & EXPONENTA_MASK) - EXPONENT_OFFSET;
+
+       if(exponent < 0)
+       {
+           // Целая часть равна нулю. Если число не ноль, то оно дробное
+           return isZero(var);
+       }
+       else if(exponent > MANTISSA_LENGTH)
+       {
+           // Отсутствует дробная часть
+           return true;
+       }
+
+       unsigned long long fractionPartMask = (1LL << (52 - exponent)) - 1;
+       return !(bitsForm & fractionPartMask);
+}
+
+
+double Calculator::parseExpression(int leftPos, int rightPos) const
 {
     trim(leftPos, rightPos);
+
+    if(leftPos > rightPos)
+        throw std::runtime_error("Empty expression!");
 
     if(strExpression[leftPos] == SUBTRACTION)
     {
         int nextPos = leftPos + 1;
-        while(strExpression[nextPos] == SPACE ||
-              strExpression[nextPos] == TAB)
+        while(isSpace(nextPos))
         {
             ++nextPos;
         }
@@ -99,7 +131,7 @@ double Calculator::parseExpression(int leftPos, int rightPos)
     }
 }
 
-double Calculator::parsePolynomial(int leftPos, int rightPos)
+double Calculator::parsePolynomial(int leftPos, int rightPos) const
 {
     trim(leftPos, rightPos);
 
@@ -121,7 +153,7 @@ double Calculator::parsePolynomial(int leftPos, int rightPos)
         case ADDITION:
             if((pos == rightPos) || (pos == leftPos))
             {
-                throw std::runtime_error("Polynomial can't start or finish with symbol \"+\"!");
+                throw std::runtime_error("Polynomial start or finish with symbol \"+\"!");
             }
             else
             {
@@ -139,7 +171,7 @@ double Calculator::parsePolynomial(int leftPos, int rightPos)
         case SUBTRACTION:
             if(pos == rightPos)
             {
-                throw std::runtime_error("Polynomial can't finish with symbol \"-\"!");
+                throw std::runtime_error("Polynomial finish with symbol \"-\"!");
             }
             else
             {
@@ -150,9 +182,7 @@ double Calculator::parsePolynomial(int leftPos, int rightPos)
 
                 int previousPos = pos - 1;
 
-                while(previousPos != leftPos &&
-                     (strExpression[previousPos] == SPACE ||
-                      strExpression[previousPos] == TAB))
+                while(previousPos != leftPos && isSpace(previousPos))
                 {
                     --previousPos;
                 }
@@ -181,16 +211,16 @@ double Calculator::parsePolynomial(int leftPos, int rightPos)
     return parseMonomial(leftPos, rightPos);
 }
 
-double Calculator::parseMonomial(int leftPos, int rightPos)
+double Calculator::parseMonomial(int leftPos, int rightPos) const
 {
-
     trim(leftPos, rightPos);
 
     bool meetBracket = false;
 
     for(int pos = rightPos; pos >= leftPos; --pos)
     {
-        switch (strExpression[pos])
+        char symbol = strExpression[pos];
+        switch (symbol)
         {
         case LEFT_BRACKET:
             throw std::runtime_error("Unexpected left bracket!");
@@ -201,35 +231,43 @@ double Calculator::parseMonomial(int leftPos, int rightPos)
         case MULTIPLICATION:
             if((pos == rightPos) || (pos == leftPos))
             {
-                throw std::runtime_error("Monomial can't start or finish with symbol \"*\"!");
+                throw std::runtime_error("Monomial start or finish with symbol \"*\"!");
             }
             else
             {
+                double rightMultiplier;
+
                 if(meetBracket)
+                    rightMultiplier = parseExpression(pos + 1, rightPos);
+                else
+                    rightMultiplier = parsePower(pos + 1, rightPos);
+
+                if(isZero(rightMultiplier))
                 {
-                    return parseExpression(leftPos, pos - 1) * parseExpression(pos + 1, rightPos);
+                    return 0;
                 }
                 else
                 {
-                    return parseExpression(leftPos, pos - 1) * parsePower(pos + 1, rightPos);
+                    return parseExpression(leftPos, pos - 1) * rightMultiplier;
                 }
             }
             break;
         case DIVISION:
             if((pos == rightPos) || (pos == leftPos))
-            {
-                throw std::runtime_error("Monomial can't start or finish with symbol \"/\"!");
-            }
+                throw std::runtime_error("Monomial start or finish with symbol \"/\"!");
+
             else
             {
+                double divisor;
                 if(meetBracket)
-                {
-                    return parseExpression(leftPos, pos - 1) / parseExpression(pos + 1, rightPos);
-                }
+                    divisor = parseExpression(pos + 1, rightPos);
                 else
-                {
-                    return parseExpression(leftPos, pos - 1) / parsePower(pos + 1, rightPos);
-                }
+                    divisor = parsePower(pos + 1, rightPos);
+
+                if(isZero(divisor))
+                    throw std::runtime_error("Oops, division by zero!");
+
+                return parseExpression(leftPos, pos - 1) / divisor;
             }
             break;
         default:
@@ -238,10 +276,9 @@ double Calculator::parseMonomial(int leftPos, int rightPos)
     }
 
     return parsePower(leftPos, rightPos);
-
 }
 
-double Calculator::parsePower(int leftPos, int rightPos)
+double Calculator::parsePower(int leftPos, int rightPos) const
 {
     trim(leftPos, rightPos);
     bool meetBracket = false;
@@ -261,21 +298,40 @@ double Calculator::parsePower(int leftPos, int rightPos)
         case POWER:
             if((pos == rightPos) || (pos == leftPos))
             {
-                throw std::runtime_error("Power can't start or finish with symbol \"^\"!");
+                throw std::runtime_error("Power start or finish with symbol \"^\"!");
             }
             else
             {
+                double number;
+
                 if(meetBracket)
-                {
-                    return std::pow(parseExpression(leftPos, pos - 1), parseExpression(pos + 1, rightPos));
-                }
+                    number = parseExpression(leftPos, pos - 1);
                 else
+                    number = parseNumber(leftPos, pos - 1);
+
+                double power = parseExpression(pos + 1, rightPos);
+
+                if(number < 0 && !isInteger(power))
+                    throw std::runtime_error("Negative number to fractional power!");
+
+                if(isZero(power))
                 {
-                    return std::pow(parseNumber(leftPos, pos - 1), parseExpression(pos + 1, rightPos));
+                    if(isZero(number))
+                        throw std::runtime_error("Zero to zero power!");
+                    else
+                        return 1;
                 }
 
+                if(isZero(number))
+                {
+                    if(power < 0)
+                        throw std::runtime_error("Zero to negative power!");
+                    else
+                        return 0;
+                }
+
+                return std::pow(number, power);
             }
-            break;
 
         default:
             break;
@@ -286,20 +342,16 @@ double Calculator::parsePower(int leftPos, int rightPos)
     return parseNumber(leftPos, rightPos);
 }
 
-void Calculator::trim(int &leftPos, int &rightPos)
+void Calculator::trim(int &leftPos, int &rightPos) const
 {
-    while((strExpression[leftPos] == SPACE)                   ||
-          (strExpression[leftPos] == TERMINATION)             ||
-          (strExpression[leftPos] == TAB))
-                                    ++leftPos;
+    while(isSpace(leftPos))
+                    ++leftPos;
 
-    while((strExpression[rightPos] == SPACE)                  ||
-          (strExpression[rightPos] == TERMINATION)            ||
-          (strExpression[rightPos] == TAB))
-                                    --rightPos;
+    while(isSpace(rightPos))
+                    --rightPos;
 }
 
-double Calculator::parseNumber(int leftPos, int rightPos)
+double Calculator::parseNumber(int leftPos, int rightPos) const
 {
     int delimitetPos;
     double result = 0;
@@ -327,7 +379,7 @@ double Calculator::parseNumber(int leftPos, int rightPos)
         {
             if(delimiterWas)
             {
-                throw std::runtime_error("Extra delimiter!");
+                throw std::runtime_error("Extra delimiter in number!");
             }
             else
             {
@@ -355,7 +407,7 @@ double Calculator::parseNumber(int leftPos, int rightPos)
     return result;
 }
 
-int Calculator::stringSize()
+int Calculator::stringSize() const
 {
     int pos = 0;
     while(strExpression[pos] != TERMINATION)
@@ -364,14 +416,14 @@ int Calculator::stringSize()
         int acceptableSymbolIndex = 0;
         do
         {
-            if(strExpression[pos] == acceptableSymbols[acceptableSymbolIndex])
+            if(strExpression[pos] == ACCEPTABLE_SYMBOLS[acceptableSymbolIndex])
             {
                 accept = true;
                 break;
             }
             ++acceptableSymbolIndex;
 
-        }while(acceptableSymbols[acceptableSymbolIndex] != TERMINATION);
+        }while(ACCEPTABLE_SYMBOLS[acceptableSymbolIndex] != TERMINATION);
 
         if(!accept)
         {
@@ -387,7 +439,7 @@ int Calculator::stringSize()
 
 }
 
-int Calculator::findLeftBracket(int leftPos, int rightPos)
+int Calculator::findLeftBracket(int leftPos, int rightPos) const
 {
 
     int balance = 0;
@@ -414,7 +466,7 @@ int Calculator::findLeftBracket(int leftPos, int rightPos)
     throw std::runtime_error("Can't find left bracket!");
 }
 
-int Calculator::findRightBracket(int leftPos, int rightPos)
+int Calculator::findRightBracket(int leftPos, int rightPos) const
 {
     int balance = 0;
     for(int pos = leftPos; pos <= rightPos; ++pos)
@@ -438,5 +490,12 @@ int Calculator::findRightBracket(int leftPos, int rightPos)
     }
 
     throw std::runtime_error("Can't find right bracket!");
+}
+
+bool Calculator::isSpace(int pos) const
+{
+    return ((strExpression[pos] == SPACE)       ||
+            (strExpression[pos] == TERMINATION) ||
+            (strExpression[pos] == TAB));
 }
 
