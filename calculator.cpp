@@ -241,15 +241,13 @@ double Calculator::parseMonomial(int leftPos, int rightPos) const
                     rightMultiplier = parseExpression(pos + 1, rightPos);
                 else
                     rightMultiplier = parsePower(pos + 1, rightPos);
-
-                if(isZero(rightMultiplier))
-                {
-                    return 0;
-                }
-                else
-                {
-                    return parseExpression(leftPos, pos - 1) * rightMultiplier;
-                }
+                
+                  
+                
+                
+                
+                return parseExpression(leftPos, pos - 1) * rightMultiplier;
+                
             }
             break;
         case DIVISION:
